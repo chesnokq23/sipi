@@ -1,0 +1,237 @@
+/**
+ * Клиентская логика учебного планера.
+ * Задачи хранятся в localStorage текущего браузера и не отправляются на сервер.
+ * @file
+ */
+const STORAGE_KEY = "study-planner-tasks-v1";
+const priorityRank = { high: 0, normal: 1, low: 2 };
+const priorityLabel = { high: "Высокий приоритет", normal: "Обычный", low: "Низкий приоритет" };
+
+/**
+ * Запись учебной задачи, сохранённая в браузере.
+ * @typedef {Object} StudyTask
+ * @property {string} id Уникальный идентификатор задачи.
+ * @property {string} title Обязательное название задачи.
+ * @property {string} subject Предмет; пустая строка допустима.
+ * @property {string} dueDate Срок в формате YYYY-MM-DD или пустая строка.
+ * @property {'high'|'normal'|'low'} priority Уровень приоритета.
+ * @property {boolean} done Признак выполнения.
+ * @property {number} createdAt Время создания в миллисекундах Unix.
+ */
+
+let tasks = readTasks();
+let currentFilter = "all";
+let query = "";
+
+const form = document.querySelector("#taskForm");
+const taskList = document.querySelector("#taskList");
+const emptyState = document.querySelector("#emptyState");
+const emptyTitle = document.querySelector("#emptyTitle");
+const emptyCopy = document.querySelector("#emptyCopy");
+const formMessage = document.querySelector("#formMessage");
+const sortSelect = document.querySelector("#sortSelect");
+const helpDialog = document.querySelector("#helpDialog");
+
+/**
+ * Загружает список из локального хранилища и отбрасывает записи без базовых полей.
+ * @returns {StudyTask[]} Проверенный список или пустой массив, если данных нет/они повреждены.
+ */
+function readTasks() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    return Array.isArray(stored) ? stored.filter((task) => task && typeof task.id === "string" && typeof task.title === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Сохраняет актуальный список и сообщает пользователю, если браузер запретил запись. @returns {boolean} */
+function saveTasks() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    return true;
+  } catch {
+    formMessage.textContent = "Не удалось сохранить данные в браузере.";
+    return false;
+  }
+}
+
+/** Преобразует ISO-дату задачи в короткую русскую подпись. @param {string} value @returns {string} */
+function formatDate(value) {
+  if (!value) return "Без срока";
+  const date = new Date(`${value}T00:00:00`);
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" }).format(date);
+}
+
+/** Обновляет карточку текущей даты в шапке страницы. */
+function updateToday() {
+  const today = new Intl.DateTimeFormat("ru-RU", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  document.querySelector("#todayDate").textContent = today.charAt(0).toUpperCase() + today.slice(1);
+}
+
+/** Применяет выбранный фильтр, поиск и способ сортировки к списку задач. @returns {StudyTask[]} */
+function visibleTasks() {
+  const filtered = tasks.filter((task) => {
+    const filterMatches = currentFilter === "all" || (currentFilter === "open" && !task.done) || (currentFilter === "done" && task.done);
+    const haystack = `${task.title} ${task.subject || ""}`.toLocaleLowerCase("ru-RU");
+    return filterMatches && haystack.includes(query);
+  });
+  const sort = sortSelect.value;
+  return filtered.sort((a, b) => {
+    if (sort === "priority") return priorityRank[a.priority] - priorityRank[b.priority] || (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
+    if (sort === "created") return b.createdAt - a.createdAt;
+    return (a.dueDate || "9999").localeCompare(b.dueDate || "9999") || b.createdAt - a.createdAt;
+  });
+}
+
+/** Перерисовывает список задач, сводные счётчики и состояние пустого списка. */
+function render() {
+  const shown = visibleTasks();
+  taskList.replaceChildren();
+  document.querySelector("#totalCount").textContent = tasks.length;
+  document.querySelector("#openCount").textContent = tasks.filter((task) => !task.done).length;
+  document.querySelector("#doneCount").textContent = tasks.filter((task) => task.done).length;
+
+  shown.forEach((task) => {
+    const item = document.createElement("article");
+    item.className = `task-item${task.done ? " completed" : ""}`;
+
+    const checkbox = document.createElement("input");
+    checkbox.className = "task-check";
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(task.done);
+    checkbox.setAttribute("aria-label", task.done ? `Вернуть задачу «${task.title}» в работу` : `Отметить задачу «${task.title}» выполненной`);
+    checkbox.addEventListener("change", () => {
+      task.done = checkbox.checked;
+      saveTasks();
+      render();
+    });
+
+    const info = document.createElement("div");
+    const title = document.createElement("h3");
+    title.className = "task-title";
+    title.textContent = task.title;
+    info.append(title);
+    const meta = document.createElement("div");
+    meta.className = "task-meta";
+    if (task.subject) {
+      const subject = document.createElement("span");
+      subject.className = "badge";
+      subject.textContent = task.subject;
+      meta.append(subject);
+    }
+    const due = document.createElement("span");
+    due.textContent = `Срок: ${formatDate(task.dueDate)}`;
+    meta.append(due);
+    const priority = document.createElement("span");
+    priority.className = `badge ${task.priority === "normal" ? "" : task.priority}`;
+    priority.textContent = priorityLabel[task.priority] || priorityLabel.normal;
+    meta.append(priority);
+    info.append(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
+    const edit = document.createElement("button");
+    edit.className = "icon-button";
+    edit.type = "button";
+    edit.textContent = "✎";
+    edit.title = "Изменить задачу";
+    edit.setAttribute("aria-label", `Изменить задачу «${task.title}»`);
+    edit.addEventListener("click", () => editTask(task));
+    const remove = document.createElement("button");
+    remove.className = "icon-button delete";
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.title = "Удалить задачу";
+    remove.setAttribute("aria-label", `Удалить задачу «${task.title}»`);
+    remove.addEventListener("click", () => {
+      tasks = tasks.filter((entry) => entry.id !== task.id);
+      saveTasks();
+      render();
+    });
+    actions.append(edit, remove);
+    item.append(checkbox, info, actions);
+    taskList.append(item);
+  });
+
+  const isEmpty = shown.length === 0;
+  emptyState.hidden = !isEmpty;
+  taskList.hidden = isEmpty;
+  if (isEmpty && tasks.length > 0) {
+    emptyTitle.textContent = "Ничего не найдено";
+    emptyCopy.textContent = "Измени запрос или выбери другой фильтр.";
+  } else {
+    emptyTitle.textContent = "Пока задач нет";
+    emptyCopy.textContent = "Добавь первую задачу — и план на день станет яснее.";
+  }
+}
+
+/** Запрашивает у пользователя изменённое название и предмет задачи. @param {StudyTask} task */
+function editTask(task) {
+  const title = window.prompt("Название задачи", task.title);
+  if (title === null) return;
+  const cleanTitle = title.trim();
+  if (!cleanTitle) {
+    formMessage.textContent = "Название задачи не может быть пустым.";
+    return;
+  }
+  const subject = window.prompt("Предмет (можно оставить пустым)", task.subject || "");
+  if (subject === null) return;
+  task.title = cleanTitle.slice(0, 90);
+  task.subject = subject.trim().slice(0, 40);
+  saveTasks();
+  render();
+  formMessage.textContent = "Задача обновлена.";
+}
+
+/** Создаёт задачу из формы, сохраняет её и возвращает фокус к полю названия. @listens HTMLFormElement#submit */
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(form);
+  const title = String(data.get("title") || "").trim();
+  if (!title) {
+    formMessage.textContent = "Введи название задачи.";
+    return;
+  }
+  tasks.push({
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    title: title.slice(0, 90),
+    subject: String(data.get("subject") || "").trim().slice(0, 40),
+    dueDate: String(data.get("dueDate") || ""),
+    priority: String(data.get("priority") || "normal"),
+    done: false,
+    createdAt: Date.now(),
+  });
+  saveTasks();
+  form.reset();
+  formMessage.textContent = "Задача добавлена в план.";
+  render();
+  document.querySelector("#taskTitle").focus();
+});
+
+/** Переключает текущий фильтр между всеми, активными и выполненными задачами. @listens HTMLButtonElement#click */
+document.querySelectorAll(".filter-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    currentFilter = button.dataset.filter;
+    document.querySelectorAll(".filter-button").forEach((filterButton) => {
+      const active = filterButton === button;
+      filterButton.classList.toggle("active", active);
+      filterButton.setAttribute("aria-pressed", String(active));
+    });
+    render();
+  });
+});
+
+/** Обновляет поисковую строку при вводе пользователя. @listens HTMLInputElement#input */
+document.querySelector("#searchInput").addEventListener("input", (event) => {
+  query = event.target.value.trim().toLocaleLowerCase("ru-RU");
+  render();
+});
+sortSelect.addEventListener("change", render);
+document.querySelector("#helpButton").addEventListener("click", () => helpDialog.showModal());
+document.querySelector("#closeHelpButton").addEventListener("click", () => helpDialog.close());
+helpDialog.addEventListener("click", (event) => {
+  if (event.target === helpDialog) helpDialog.close();
+});
+updateToday();
+render();

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Учебный планер</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Учебный планер — главная">
+      <span class="brand-mark" aria-hidden="true">У</span>
+      <span>Учебный планер</span>
+    </a>
+    <div class="topbar-actions">
+      <button id="helpButton" class="help-button" type="button" aria-haspopup="dialog">Справка</button>
+      <span class="local-note"><span class="status-dot"></span> Данные хранятся на этом устройстве</span>
+    </div>
+  </header>
+
+  <main id="top" class="layout">
+    <section class="welcome" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Твой учебный ритм</p>
+        <h1 id="page-title">Планы становятся<br><span>понятнее.</span></h1>
+        <p class="welcome-copy">Собери учебные дела в одном месте и двигайся к дедлайнам без спешки.</p>
+      </div>
+      <div class="today-card">
+        <span class="today-icon" aria-hidden="true">✦</span>
+        <div><span class="today-label">Сегодня</span><strong id="todayDate"></strong></div>
+      </div>
+    </section>
+
+    <section class="summary" aria-label="Сводка задач">
+      <article class="summary-card summary-total"><span class="summary-label">Всего задач</span><strong id="totalCount">0</strong><span class="summary-hint">в твоём плане</span></article>
+      <article class="summary-card summary-open"><span class="summary-label">В работе</span><strong id="openCount">0</strong><span class="summary-hint">ещё впереди</span></article>
+      <article class="summary-card summary-done"><span class="summary-label">Готово</span><strong id="doneCount">0</strong><span class="summary-hint">можно выдохнуть</span></article>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel task-panel" aria-labelledby="tasks-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Твой список</p><h2 id="tasks-title">Учебные задачи</h2></div>
+          <label class="search-box"><span class="sr-only">Поиск задач</span><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Найти задачу"></label>
+        </div>
+        <div class="toolbar">
+          <div class="filters" role="group" aria-label="Фильтр задач">
+            <button class="filter-button active" type="button" data-filter="all" aria-pressed="true">Все</button>
+            <button class="filter-button" type="button" data-filter="open" aria-pressed="false">В работе</button>
+            <button class="filter-button" type="button" data-filter="done" aria-pressed="false">Готово</button>
+          </div>
+          <label class="sort-label" for="sortSelect">Сортировка</label>
+          <select id="sortSelect" class="sort-select" aria-label="Сортировать задачи">
+            <option value="date">По сроку</option>
+            <option value="priority">По приоритету</option>
+            <option value="created">Сначала новые</option>
+          </select>
+        </div>
+        <div id="taskList" class="task-list" aria-live="polite"></div>
+        <div id="emptyState" class="empty-state" hidden>
+          <span class="empty-icon" aria-hidden="true">☼</span>
+          <h3 id="emptyTitle">Пока задач нет</h3>
+          <p id="emptyCopy">Добавь первую задачу — и план на день станет яснее.</p>
+        </div>
+      </section>
+
+      <aside class="panel form-panel" aria-labelledby="form-title">
+        <p class="eyebrow">Новый шаг</p>
+        <h2 id="form-title">Добавить задачу</h2>
+        <form id="taskForm">
+          <label class="field-label" for="taskTitle">Что нужно сделать?</label>
+          <input id="taskTitle" name="title" maxlength="90" placeholder="Например, подготовить конспект" required>
+
+          <label class="field-label" for="taskSubject">Предмет <span class="optional">необязательно</span></label>
+          <input id="taskSubject" name="subject" maxlength="40" placeholder="Например, математика">
+
+          <label class="field-label" for="taskDate">Срок</label>
+          <input id="taskDate" name="dueDate" type="date">
+
+          <label class="field-label" for="taskPriority">Приоритет</label>
+          <select id="taskPriority" name="priority">
+            <option value="normal">Обычный</option>
+            <option value="high">Высокий</option>
+            <option value="low">Низкий</option>
+          </select>
+          <button class="add-button" type="submit"><span aria-hidden="true">＋</span> Добавить задачу</button>
+          <p id="formMessage" class="form-message" role="status"></p>
+        </form>
+      </aside>
+    </div>
+    <footer class="footer">Небольшой шаг сегодня — больше свободного времени завтра.</footer>
+  </main>
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+    <div class="help-heading">
+      <div><p class="eyebrow">Краткое руководство</p><h2 id="helpTitle">Как пользоваться планером</h2></div>
+      <button id="closeHelpButton" class="icon-button" type="button" aria-label="Закрыть справку">×</button>
+    </div>
+    <ol class="help-steps">
+      <li><strong>Добавь задачу.</strong> Введи название. Предмет и срок можно оставить пустыми. Выбери приоритет и нажми «Добавить задачу».</li>
+      <li><strong>Следи за планом.</strong> Карточка покажет предмет, срок и приоритет. Сводка сверху считает все задачи, незавершённые и выполненные.</li>
+      <li><strong>Обновляй состояние.</strong> Отметь флажок, чтобы завершить задачу; снимай отметку, чтобы вернуть её в работу. Карандаш меняет название и предмет, крестик удаляет задачу.</li>
+      <li><strong>Находи нужное.</strong> Поиск проверяет название и предмет. Фильтры показывают все задачи, только задачи в работе или завершённые. Сортировка упорядочивает список по сроку, приоритету или времени создания.</li>
+    </ol>
+    <p class="help-storage-note">Список хранится локально в этом браузере. Он не синхронизируется между устройствами. Очистка данных сайта или профиля браузера может удалить сохранённые задачи.</p>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "study-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Individual student study planner website",
+  "scripts": {
+    "docs:api": "jsdoc -c jsdoc.json script.js"
+  },
+  "devDependencies": {
+    "jsdoc": "4.0.5"
+  }
+}

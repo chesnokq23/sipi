@@ -1,0 +1,15 @@
+{
+  "tags": {
+    "allowUnknownTags": true
+  },
+  "source": {
+    "include": ["script.js"],
+    "includePattern": ".+\\.js(doc|x)?$",
+    "excludePattern": "(^|/|\\\\)_"
+  },
+  "opts": {
+    "destination": "docs/api",
+    "recurse": true,
+    "encoding": "utf8"
+  }
+}
